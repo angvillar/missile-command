@@ -77,6 +77,12 @@ explosion_frames = [
 
 explosion_frames.extend(list(reversed(explosion_frames)))
 
+# set up missile waves
+MISSILES_PER_LEVEL = 8
+MISSILES_PER_WAVE = 4
+NUM_WAVES = MISSILES_PER_LEVEL / MISSILES_PER_WAVE
+CURRENT_WAVE = 1
+
 class Explosion(object):
 
     def __init__(self, x, y):
@@ -278,6 +284,25 @@ def draw_missiles_counters():
 
         screen.blit(text, (missile_launcher.pos_src.x - text_rect.w / 2, 700))
 
+def update_wave():
+    global CURRENT_WAVE
+    if len(missiles_attack) == 0:
+        CURRENT_WAVE += 1
+        if CURRENT_WAVE > NUM_WAVES:
+            print('level completed')
+        else:
+            create_missile_wave()
+
+def create_missile_wave():
+    del missiles_attack[:]
+    missiles_attack.extend([
+      create_missile(
+        'attack',
+        Vector2(randint(0, 1024), 10),
+        Vector2(randint(0, 1024), 700)
+      ) for _ in range(0, MISSILES_PER_WAVE)
+    ])
+
 if __name__ == '__main__':
 
     # missile launchers
@@ -287,19 +312,13 @@ if __name__ == '__main__':
       MissileLauncher(Vector2(992, 640), 3)
     ])
 
-    missiles_attack.extend([
-      create_missile(
-        'attack',
-        Vector2(randint(0, 1024), 10),
-        Vector2(randint(0, 1024), 700)
-      ) for _ in range(1, 5)
-    ])
+    create_missile_wave()
 
     # straight missile
-    missiles_attack.append(create_missile('attack', Vector2(10, 10), Vector2(20, 700)))
+    # missiles_attack.append(create_missile('attack', Vector2(10, 10), Vector2(20, 700)))
 
     # MIRV missile
-    missiles_attack.append(create_missile('MIRV', Vector2(randint(0, 1024), 10), Vector2(randint(0, 1024), 700)))
+    # missiles_attack.append(create_missile('MIRV', Vector2(randint(0, 1024), 10), Vector2(randint(0, 1024), 700)))
 
     while True:
         for event in pygame.event.get():
@@ -314,6 +333,7 @@ if __name__ == '__main__':
 
         update_missiles()
         update_explosions()
+        update_wave()
 
         screen.fill(COLOR_BLACK)
         draw_land()
