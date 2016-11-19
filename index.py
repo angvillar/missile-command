@@ -52,11 +52,18 @@ aim_rect = aim_surface.get_rect()
 missile_surface = pygame.image.load(os.path.join(ASSETS_BASE_DIR, 'missile/missile.png')).convert()
 missile_rect = missile_surface.get_rect()
 
+# set up plane
+plane_surface = pygame.image.load(os.path.join(ASSETS_BASE_DIR, 'plane/plane.png')).convert_alpha();
+plane_rect = plane_surface.get_rect()
+
 # hide the standar cursor
 pygame.mouse.set_visible(False)
 
 # center the cursor
 pygame.mouse.set_pos((SCREEN_WIDTH_HALF - aim_rect.w / 2, SCREEN_HEIGHT_HALF - aim_rect.h / 2))
+
+# set enemy list
+enemies = []
 
 # set up missile lists
 missiles_attack = []
@@ -210,6 +217,47 @@ class MissileLauncher(object):
     def destroy(self):
         pass
 
+class Plane(object):
+
+    def __init__(self, pos_src, pos_dst, speed):
+        self.surface = plane_surface
+        self.rect = plane_rect
+
+        self.pos_src = pos_src
+        self.pos_dst = pos_dst
+        self.speed = speed
+        self.pos_current = Vector2(self.pos_src)
+
+        # direction of the missile
+        self.direction = (pos_dst - pos_src).normalize()
+
+        self.__distance_half = pos_dst.distance_to(pos_src) / 2
+
+        self.__missile_fired = False
+
+    def __fire_missile(self):
+       if self.pos_current.x > self.__distance_half:
+           self.__missile_fired = True
+           # MIRV missile
+           missile_src_x = self.pos_current.x + self.rect.w / 2
+           missile_src_y = self.pos_current.y + self.rect.h
+           missiles_attack.append(create_missile(
+             'MIRV',
+             Vector2(missile_src_x, missile_src_y),
+             Vector2(randint(0, 1024), 700)
+           ))
+
+    def update(self):
+        if self.pos_current.x > self.pos_dst.x:
+            self.destroy()
+        else:
+            self.pos_current += self.direction * self.speed
+            if not self.__missile_fired:
+                self.__fire_missile()
+
+    def destroy(self):
+        enemies.remove(self)
+
 def create_missile(missile_type, pos_src, pos_dst):
     if   missile_type == 'attack':
         return Missile('attack', pos_src, pos_dst, COLOR_RED, 0.5)
@@ -243,6 +291,10 @@ def update_missiles():
     for missile in missiles_attack + missiles_defend:
         missile.update()
 
+def update_enemies():
+    for enemy in enemies:
+        enemy.update()
+
 def update_explosions():
     for explosion in explosions:
         explosion.update()
@@ -264,6 +316,10 @@ def draw_missiles():
         pygame.draw.lines(screen, missile.color, False, missile.path, 2)
         # draw missile head
         screen.blit(missile.head_surface, (missile.pos_head.x, missile.pos_head.y))
+
+def draw_enemies():
+    for enemy in enemies:
+        screen.blit(enemy.surface, (enemy.pos_current.x, enemy.pos_current.y))
 
 def draw_aim():
     mouse_pos = pygame.mouse.get_pos()
@@ -314,11 +370,7 @@ if __name__ == '__main__':
 
     create_missile_wave()
 
-    # straight missile
-    # missiles_attack.append(create_missile('attack', Vector2(10, 10), Vector2(20, 700)))
-
-    # MIRV missile
-    # missiles_attack.append(create_missile('MIRV', Vector2(randint(0, 1024), 10), Vector2(randint(0, 1024), 700)))
+    enemies.extend([Plane(Vector2(0, 250), Vector2(1024, 250), 2)])
 
     while True:
         for event in pygame.event.get():
@@ -334,14 +386,17 @@ if __name__ == '__main__':
         update_missiles()
         update_explosions()
         update_wave()
+        update_enemies()
 
         screen.fill(COLOR_BLACK)
         draw_land()
         draw_cities()
         draw_missiles()
         draw_missiles_counters()
+        draw_enemies()
         draw_explosions()
         draw_aim()
+
         pygame.display.update()
 
         Clock.tick(60)
